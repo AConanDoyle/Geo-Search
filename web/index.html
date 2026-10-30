@@ -84,8 +84,7 @@
         results.clearLayers();
         const layer = L.geoJSON(data, {
           onEachFeature: (f, l) => l.bindPopup(
-            `<b>${esc(f.properties.name)}</b><br>${esc(f.properties.description)}` +
-            `<br><small>${esc(f.properties.category)}</small>`)
+            `<b>${esc(f.properties.name)}</b><br>${esc(f.properties.ADM0NAME)}`)
         }).addTo(results);
 
         status.textContent = data.features.length + ' Treffer';

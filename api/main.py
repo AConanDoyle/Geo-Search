@@ -19,19 +19,18 @@ def reindex() -> int:
         index=INDEX,
         body={"mappings": {"properties": {
             "name": {"type": "text"},
-            "description": {"type": "text"},
-            "category": {"type": "keyword"},
+            "ADM0NAME": {"type": "text"},
         }}},
     )
     with psycopg.connect(DATABASE_URL) as conn:
         rows = conn.execute(
             'SELECT id, COALESCE(NULLIF("NAME_DE", \'\'), NULLIF("NAME_EN", \'\'), "NAME"), '
-            '"ADM0NAME", "FEATURECLA" FROM populated_places'
+            '"ADM0NAME" FROM populated_places'
         ).fetchall()
     helpers.bulk(
         os_client,
         ({"_index": INDEX, "_id": r[0],
-          "_source": {"name": r[1], "description": r[2], "category": r[3]}} for r in rows),
+          "_source": {"name": r[1], "ADM0NAME": r[2], }} for r in rows),
         refresh=True,
     )
     return len(rows)
@@ -59,8 +58,8 @@ def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=10
         "size": limit,
         "query": {"multi_match": {
             "query": q,
-            "fields": ["name^2", "description", "category"],
-            "fuzziness": "AUTO",
+            "fields": ["name^2"],
+            "fuzziness": "1",
         }},
     })
     scores = {int(h["_id"]): h["_score"] for h in res["hits"]["hits"]}
@@ -70,16 +69,15 @@ def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=10
     with psycopg.connect(DATABASE_URL) as conn:
         rows = conn.execute(
             'SELECT id, COALESCE(NULLIF("NAME_DE", \'\'), NULLIF("NAME_EN", \'\'), "NAME"), '
-            '"ADM0NAME", "FEATURECLA", ST_AsGeoJSON(geom) '
+            '"ADM0NAME", ST_AsGeoJSON(geom) '
             'FROM populated_places WHERE id = ANY(%s)',
             (list(scores),),
         ).fetchall()
 
     features = [{
         "type": "Feature",
-        "geometry": json.loads(r[4]),
-        "properties": {"id": r[0], "name": r[1], "description": r[2],
-                       "category": r[3], "score": scores[r[0]]},
+        "geometry": json.loads(r[3]),
+        "properties": {"id": r[0], "name": r[1], "ADM0NAME": r[2], "score": scores[r[0]]},
     } for r in rows]
     features.sort(key=lambda f: f["properties"]["score"], reverse=True)
     return {"type": "FeatureCollection", "features": features}

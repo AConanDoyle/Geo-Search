@@ -25,7 +25,7 @@ Then open:
 
 ## How it works
 
-1. On the first start, PostGIS creates the `places` table and loads 10 sample locations from `db/populated_places.sql`.
+1. On the first start, PostGIS creates the `places` table and loads cities from `db/populated_places.sql`.
 2. On startup, the API reads all places from PostGIS and (re)builds the OpenSearch index.
 3. `GET /search?q=<term>` runs a fuzzy multi-field search in OpenSearch, then fetches the matching geometries from PostGIS and returns a GeoJSON `FeatureCollection`.
 4. The web page sends the query to `/api/search` and renders the results as markers with popups.
