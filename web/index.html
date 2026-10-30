@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geo-Suche</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    form {
+      display: flex;
+      gap: .5rem;
+      padding: .75rem;
+    }
+
+    input {
+      flex: 1;
+      padding: .5rem;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: .5rem 1rem;
+      font-size: 1rem;
+    }
+
+    #status {
+      padding: 0 .75rem .5rem;
+      color: #555;
+      min-height: 1.2em;
+    }
+
+    #map {
+      flex: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <form id="form">
+    <input id="q" placeholder="Suche nach Städten ... " autofocus>
+    <button type="submit">Suchen</button>
+  </form>
+  <div id="status"></div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([51.1, 10.4], 6);
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}', {
+	    minZoom: 0,
+	    maxZoom: 20,
+	    attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	    ext: 'png'
+    }).addTo(map);
+
+    const results = L.layerGroup().addTo(map);
+    const status = document.getElementById('status');
+    const esc = s => String(s ?? '').replace(/[&<>"']/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    document.getElementById('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const q = document.getElementById('q').value.trim();
+      if (!q) return;
+      status.textContent = 'Suche …';
+      try {
+        const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        results.clearLayers();
+        const layer = L.geoJSON(data, {
+          onEachFeature: (f, l) => l.bindPopup(
+            `<b>${esc(f.properties.name)}</b><br>${esc(f.properties.description)}` +
+            `<br><small>${esc(f.properties.category)}</small>`)
+        }).addTo(results);
+
+        status.textContent = data.features.length + ' Treffer';
+        if (data.features.length) map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 12 });
+      } catch (err) {
+        status.textContent = 'Fehler: ' + err.message;
+      }
+    });
+  </script>
+</body>
+
+</html>
