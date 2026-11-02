@@ -1,4 +1,4 @@
-import L from "leaflet";
+const L = window.L;
 
 // A layer control which provides for layer groupings.
 // Author: Ishmael Smyrnow

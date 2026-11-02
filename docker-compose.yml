@@ -69,6 +69,7 @@ services:
     ports:
       - "3000:80"
     volumes:
+      - ./web/src:/usr/share/nginx/html/src/
       - ./web/index.html:/usr/share/nginx/html/index.html:ro
       - ./web/app.js:/usr/share/nginx/html/app.js:ro
       - ./web/style.css:/usr/share/nginx/html/style.css:ro

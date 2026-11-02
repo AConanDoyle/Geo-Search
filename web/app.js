@@ -1,5 +1,7 @@
+import { GroupedLayers } from './src/leaflet.groupedlayercontrol.js';
+
 const map = L.map('map').setView([51.1, 10.4], 6);
-L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}', {
+const baselayers = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}', {
   minZoom: 0,
   maxZoom: 20,
   attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -10,6 +12,52 @@ const results = L.layerGroup().addTo(map);
 const status = document.getElementById('status');
 const esc = value => String(value ?? '').replace(/[&<>"']/g,
   character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+
+const groupedOverlays = {
+  'Layers': {
+    'Populated Places': L.geoJSON(null, {
+      onEachFeature: (feature, layer) => layer.bindPopup(
+        `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.adm0name)}`
+      )
+    }),
+    Countries: L.geoJSON(null, {
+      style: { color: '#b7c8ce', weight: 1, fillOpacity: 0.12 },
+      onEachFeature: (feature, layer) => layer.bindPopup(
+        `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.continent)}`
+      )
+    })
+  }
+};
+
+const layerControl = new GroupedLayers(
+  { 'Basemap': baselayers },
+  groupedOverlays,
+  { groupCheckboxes: true }
+).addTo(map);
+
+async function loadOverlayData() {
+  try {
+    const [placesResponse, countriesResponse] = await Promise.all([
+      fetch('/api/populated_places'),
+      fetch('/api/countries')
+    ]);
+    if (!placesResponse.ok || !countriesResponse.ok) {
+      throw new Error('Map layers');
+    }
+
+    const [placesData, countriesData] = await Promise.all([
+      placesResponse.json(),
+      countriesResponse.json()
+    ]);
+    groupedOverlays.Layers['Populated Places'].addData(placesData);
+    groupedOverlays.Layers.Countries.addData(countriesData);
+    status.textContent = `${placesData.features.length} Orte und ${countriesData.features.length} Länder geladen`;
+  } catch (error) {
+    status.textContent = `Error while loading layers: ${error.message}`;
+  }
+}
+
+loadOverlayData();
 
 document.getElementById('form').addEventListener('submit', async event => {
   event.preventDefault();
