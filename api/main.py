@@ -35,21 +35,55 @@ def reindex() -> int:
     )
     return len(rows)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     reindex()
     yield
 
-
 app = FastAPI(title="Geo-Suche", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
 
 @app.post("/reindex")
 def reindex_endpoint():
     return {"indexed": reindex()}
 
+@app.get("/countries")
+def get_countries():
+    with psycopg.connect(DATABASE_URL) as conn:
+        rows = conn.execute(
+            'SELECT id, "ADMIN", "CONTINENT", ST_AsGeoJSON(geom) '
+            'FROM countries WHERE geom IS NOT NULL'
+        ).fetchall()
+
+    features = [{
+        "type": "Feature",
+        "geometry": json.loads(row[3]),
+        "properties": {
+            "id": row[0],
+            "name": row[1],
+            "continent": row[2],
+        },
+    } for row in rows]
+    return {"type": "FeatureCollection", "features": features}
+
+@app.get("/populated_places")
+def get_populated_places():
+    with psycopg.connect(DATABASE_URL) as conn:
+        rows = conn.execute(
+            'SELECT id, "NAME", "ADM0NAME", ST_AsGeoJSON(geom) '
+            'FROM populated_places WHERE geom IS NOT NULL'
+        ).fetchall()
+
+    features = [{
+        "type": "Feature",
+        "geometry": json.loads(row[3]),
+        "properties": {
+            "id": row[0],
+            "name": row[1],
+            "adm0name": row[2],
+        },
+    } for row in rows]
+    return {"type": "FeatureCollection", "features": features}
 
 @app.get("/search")
 def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=100)):
