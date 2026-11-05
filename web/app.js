@@ -20,7 +20,7 @@ const groupedOverlays = {
         `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.adm0name)}`
       )
     }),
-    Countries: L.geoJSON(null, {
+    'Countries': L.geoJSON(null, {
       style: { color: '#b7c8ce', weight: 1, fillOpacity: 0.12 },
       onEachFeature: (feature, layer) => layer.bindPopup(
         `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.continent)}`
@@ -30,9 +30,8 @@ const groupedOverlays = {
 };
 
 const layerControl = new GroupedLayers(
-  { 'Basemap': baselayers },
-  groupedOverlays,
-  { groupCheckboxes: true }
+  { 'Statia Basemap': baselayers },
+  groupedOverlays
 ).addTo(map);
 
 async function loadOverlayData() {
