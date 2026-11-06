@@ -1,10 +1,18 @@
 services:
   # PostgreSQL / PostGIS
   db:
-    image: postgis/postgis:17-3.5
-    platform: linux/amd64
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    image: geo-search-db:17-bookworm
     container_name: postgis_db
     restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=${POSTGRES_DB:-gis}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-passwordIsSave123456789}
@@ -13,8 +21,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/populated_places.sql:/docker-entrypoint-initdb.d/populated_places.sql:ro
-      - ./db/countries.sql:/docker-entrypoint-initdb.d/countries.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s

@@ -15,7 +15,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g,
 
 const groupedOverlays = {
   'Layers': {
-    'Populated Places': L.geoJSON(null, {
+    'Cities': L.geoJSON(null, {
       onEachFeature: (feature, layer) => layer.bindPopup(
         `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.adm0name)}`
       )
@@ -48,7 +48,7 @@ async function loadOverlayData() {
       placesResponse.json(),
       countriesResponse.json()
     ]);
-    groupedOverlays.Layers['Populated Places'].addData(placesData);
+    groupedOverlays.Layers['Cities'].addData(placesData);
     groupedOverlays.Layers.Countries.addData(countriesData);
     status.textContent = `${placesData.features.length} Orte und ${countriesData.features.length} Länder geladen`;
   } catch (error) {
