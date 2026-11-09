@@ -1,0 +1,27 @@
+name: Compose Config Check
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml syntax
+        run: docker compose config --quiet
+
+      - name: Validate with example env file
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+            docker compose config --quiet
+          else
+            echo "No .env.example found - skipping env validation"
+          fi
+
+      - name: List resolved services
+        run: docker compose config --services
