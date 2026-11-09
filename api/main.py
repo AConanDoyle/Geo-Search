@@ -85,6 +85,34 @@ def get_populated_places():
     } for row in rows]
     return {"type": "FeatureCollection", "features": features}
 
+@app.get("/earthquakes")
+def get_earthquakes(limit: int = Query(1000, ge=1, le=5000)):
+    """Return recent earthquakes as GeoJSON."""
+    with psycopg.connect(DATABASE_URL) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, place, mag, depth_km, event_time, url, ST_AsGeoJSON(geom)
+            FROM earthquakes AS e
+            ORDER BY event_time DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+    features = [{
+        "type": "Feature",
+        "geometry": json.loads(row[6]),
+        "properties": {
+            "id": row[0],
+            "place": row[1],
+            "magnitude": row[2],
+            "depth_km": row[3],
+            "event_time": row[4].isoformat(),
+            "url": row[5],
+        },
+    } for row in rows]
+    return {"type": "FeatureCollection", "features": features}
+
 @app.get("/search")
 def search(q: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=100)):
     """Full-text search in OpenSearch"""

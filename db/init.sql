@@ -344,7 +344,6 @@ CREATE EXTENSION IF NOT EXISTS ogr_fdw;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- The USGS feed (last 24 h, refreshed about once a minute) as a foreign table.
--- GDAL downloads and parses the GeoJSON on every query; layer name = file name.
 CREATE SERVER IF NOT EXISTS usgs
     FOREIGN DATA WRAPPER ogr_fdw
     OPTIONS (
@@ -357,14 +356,14 @@ CREATE FOREIGN TABLE IF NOT EXISTS usgs_feed (
     id          varchar,
     mag         double precision,
     place       varchar,
-    event_ms    bigint  OPTIONS (column_name 'time'),     -- milliseconds since epoch
+    event_ms    bigint  OPTIONS (column_name 'time'),
     updated_ms  bigint  OPTIONS (column_name 'updated'),
     url         varchar,
     type        varchar,
-    geom        geometry(PointZ, 4979)                    -- z = depth in km
+    geom        geometry(PointZ, 4979)
 ) SERVER usgs OPTIONS (layer 'all_day');
 
--- Upsert new and revised earthquakes; returns how many rows changed.
+-- Update earthquake dataset
 CREATE OR REPLACE FUNCTION load_quakes(min_mag double precision DEFAULT 2.5)
 RETURNS integer LANGUAGE sql AS $$
     WITH up AS (
@@ -385,7 +384,7 @@ RETURNS integer LANGUAGE sql AS $$
     SELECT count(*)::integer FROM up
 $$;
 
--- Tell listeners (the API) about every new or revised quake
+-- Tells API about about updates
 CREATE OR REPLACE FUNCTION notify_quake() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     PERFORM pg_notify('quake', NEW.id);
@@ -398,5 +397,5 @@ CREATE TRIGGER earthquakes_notify
     AFTER INSERT OR UPDATE ON earthquakes
     FOR EACH ROW EXECUTE FUNCTION notify_quake();
 
--- CronJob, run import every minute
-SELECT cron.schedule('load-quakes', '* * * * *', 'SELECT load_quakes()');
+-- CronJob, run import every five minute
+SELECT cron.schedule('load-quakes', '*/5 * * * *', 'SELECT load_quakes()');

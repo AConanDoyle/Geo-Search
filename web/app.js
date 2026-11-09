@@ -9,6 +9,30 @@ const baselayers = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smoot
 }).addTo(map);
 
 const results = L.layerGroup().addTo(map);
+const earthquakes = L.geoJSON(null, {
+  pointToLayer: (feature, latlng) => {
+    const magnitude = Number(feature.properties.magnitude ?? 0);
+    return L.circleMarker(latlng, {
+      radius: Math.max(4, Math.min(12, 3 + magnitude * 1.5)),
+      color: '#fff7ed',
+      weight: 1.5,
+      fillColor: '#ef704f',
+      fillOpacity: 0.9
+    });
+  },
+  onEachFeature: (feature, layer) => {
+    const properties = feature.properties;
+    const time = new Date(properties.event_time).toLocaleString('de-DE');
+    const usgsLink = properties.url
+      ? `<br><a href="${esc(properties.url)}" target="_blank" rel="noopener">USGS-Details</a>`
+      : '';
+    layer.bindPopup(
+      `<b>M ${esc(properties.magnitude ?? 'unbekannt')} · ${esc(properties.place)}</b><br>` +
+      `${esc(time)}<br>Tiefe: ${esc(properties.depth_km)} km<br>` +
+      usgsLink
+    );
+  }
+}).addTo(map);
 const status = document.getElementById('status');
 const esc = value => String(value ?? '').replace(/[&<>"']/g,
   character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
@@ -25,7 +49,8 @@ const groupedOverlays = {
       onEachFeature: (feature, layer) => layer.bindPopup(
         `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.continent)}`
       )
-    })
+    }),
+    'Erdbeben': earthquakes
   }
 };
 
@@ -36,21 +61,27 @@ const layerControl = new GroupedLayers(
 
 async function loadOverlayData() {
   try {
-    const [placesResponse, countriesResponse] = await Promise.all([
+    const [placesResponse, countriesResponse, earthquakesResponse] = await Promise.all([
       fetch('/api/populated_places'),
-      fetch('/api/countries')
+      fetch('/api/countries'),
+      fetch('/api/earthquakes')
     ]);
-    if (!placesResponse.ok || !countriesResponse.ok) {
+    if (!placesResponse.ok || !countriesResponse.ok || !earthquakesResponse.ok) {
       throw new Error('Map layers');
     }
 
-    const [placesData, countriesData] = await Promise.all([
+    const [placesData, countriesData, earthquakesData] = await Promise.all([
       placesResponse.json(),
-      countriesResponse.json()
+      countriesResponse.json(),
+      earthquakesResponse.json()
     ]);
     groupedOverlays.Layers['Cities'].addData(placesData);
     groupedOverlays.Layers.Countries.addData(countriesData);
-    status.textContent = `${placesData.features.length} Orte und ${countriesData.features.length} Länder geladen`;
+    earthquakes.addData(earthquakesData);
+    if (earthquakesData.features.length) {
+      map.fitBounds(earthquakes.getBounds(), { padding: [30, 30], maxZoom: 5 });
+    }
+    status.textContent = `${placesData.features.length} Orte, ${countriesData.features.length} Länder und ${earthquakesData.features.length} Erdbeben geladen`;
   } catch (error) {
     status.textContent = `Error while loading layers: ${error.message}`;
   }
