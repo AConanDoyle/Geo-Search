@@ -343,7 +343,7 @@ CREATE INDEX IF NOT EXISTS earthquakes_time_idx ON earthquakes (event_time DESC)
 CREATE EXTENSION IF NOT EXISTS ogr_fdw;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- The USGS feed (last 24 h, refreshed about once a minute) as a foreign table.
+-- The USGS feed (last 24 h) as a foreign table.
 CREATE SERVER IF NOT EXISTS usgs
     FOREIGN DATA WRAPPER ogr_fdw
     OPTIONS (

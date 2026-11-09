@@ -87,12 +87,15 @@ def get_populated_places():
 
 @app.get("/earthquakes")
 def get_earthquakes(limit: int = Query(1000, ge=1, le=5000)):
-    """Return recent earthquakes as GeoJSON."""
+    """Return recent earthquakes as GeoJSON (last 24 hours)."""
     with psycopg.connect(DATABASE_URL) as conn:
+        # Filter earthquakes from the last 24 hours
+        now_utc = "NOW() AT TIME ZONE 'UTC'"
         rows = conn.execute(
             """
             SELECT id, place, mag, depth_km, event_time, url, ST_AsGeoJSON(geom)
             FROM earthquakes AS e
+            WHERE event_time >= NOW() - INTERVAL '24 hours'
             ORDER BY event_time DESC
             LIMIT %s
             """,
