@@ -17,9 +17,7 @@ jobs:
       - name: Validate with .env file
         run: |
           if [ -f .env ]; then
-            cp .env .env.tmp
-            docker compose config --quiet
-            rm .env.tmp
+            docker compose --env-file .env config --quiet
           else
             echo "No .env found - skipping env validation"
           fi
