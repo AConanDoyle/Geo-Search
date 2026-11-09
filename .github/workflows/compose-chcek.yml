@@ -7,6 +7,8 @@ on:
 jobs:
   validate-compose:
     runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-only-not-a-real-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
