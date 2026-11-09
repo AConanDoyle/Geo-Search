@@ -14,13 +14,14 @@ jobs:
       - name: Validate docker-compose.yml syntax
         run: docker compose config --quiet
 
-      - name: Validate with example env file
+      - name: Validate with .env file
         run: |
-          if [ -f .env.example ]; then
-            cp .env.example .env
+          if [ -f .env ]; then
+            cp .env .env.tmp
             docker compose config --quiet
+            rm .env.tmp
           else
-            echo "No .env.example found - skipping env validation"
+            echo "No .env found - skipping env validation"
           fi
 
       - name: List resolved services
