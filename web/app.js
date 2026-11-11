@@ -1,13 +1,29 @@
 import { GroupedLayers } from './src/leaflet.groupedlayercontrol.js';
 
 const map = L.map('map').setView([51.1, 10.4], 6);
-const baselayers = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}', {
+// Basemaps
+const baselayersStatiaDark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}', {
   minZoom: 0,
   maxZoom: 20,
   attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   ext: 'png'
 }).addTo(map);
 
+const baselayersSatellite = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.{ext}', {
+  minZoom: 0,
+  maxZoom: 20,
+  attribution: '&copy; CNES, Distribution Airbus DS, © Airbus DS, © PlanetObserver (Contains Copernicus Data) | &copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  ext: 'jpg'
+});
+
+const baselayersStadiaOutdoors = L.tileLayer('https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.{ext}', {
+	minZoom: 0,
+	maxZoom: 20,
+	attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	ext: 'png'
+});
+
+// Data
 const results = L.layerGroup().addTo(map);
 const earthquakes = L.geoJSON(null, {
   pointToLayer: (feature, latlng) => {
@@ -32,30 +48,39 @@ const earthquakes = L.geoJSON(null, {
       usgsLink
     );
   }
-}).addTo(map);
+});
+
+const cities = L.geoJSON(null, {
+  onEachFeature: (feature, layer) => layer.bindPopup(
+    `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.adm0name)}`
+  )
+});
+
+const countries = L.geoJSON(null, {
+  style: { color: '#b7c8ce', weight: 1, fillOpacity: 0.12 },
+  onEachFeature: (feature, layer) => layer.bindPopup(
+    `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.continent)}`
+  )
+});
+
 const status = document.getElementById('status');
 const esc = value => String(value ?? '').replace(/[&<>"']/g,
   character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 
 const groupedOverlays = {
   'Layers': {
-    'Cities': L.geoJSON(null, {
-      onEachFeature: (feature, layer) => layer.bindPopup(
-        `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.adm0name)}`
-      )
-    }),
-    'Countries': L.geoJSON(null, {
-      style: { color: '#b7c8ce', weight: 1, fillOpacity: 0.12 },
-      onEachFeature: (feature, layer) => layer.bindPopup(
-        `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.continent)}`
-      )
-    }),
-    'Erdbeben': earthquakes
+    'Cities': cities,
+    'Countries': countries,
+    'Earthquakes': earthquakes
   }
 };
 
 const layerControl = new GroupedLayers(
-  { 'Statia Basemap': baselayers },
+  { 
+    'Statia Alidade Dark': baselayersStatiaDark,
+    'Stadia Outdoors': baselayersStadiaOutdoors,
+    'Satellite': baselayersSatellite
+  },
   groupedOverlays
 ).addTo(map);
 
@@ -96,7 +121,7 @@ document.getElementById('form').addEventListener('submit', async event => {
   status.textContent = 'Suche …';
   try {
     const response = await fetch('/api/search?q=' + encodeURIComponent(query));
-    if (!response.ok) throw new Error('HTTP ' + response.status);
+    if (!response.ok) throw new Error('HTTP ' + error.status);
     const data = await response.json();
 
     results.clearLayers();
