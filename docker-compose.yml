@@ -85,4 +85,6 @@ services:
 
 volumes:
   pgdata:
+    name: geo-search_pgdata
   osdata:
+    name: geo-search_osdata

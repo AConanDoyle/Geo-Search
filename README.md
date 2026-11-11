@@ -1,6 +1,6 @@
 # Geo Search Stack
 
-A small, self-contained demo stack for searching geographic data: places are stored in **PostgreSQL/PostGIS**, indexed in **OpenSearch** for full-text search, exposed through a **FastAPI** service, and displayed on a **Leaflet** map.
+A small demo stack for geographic search: places are stored in **PostgreSQL/PostGIS**, indexed in **OpenSearch**, and served through **FastAPI** to a **Leaflet** map. Recent USGS earthquake data is also imported into PostGIS by a scheduled ETL job and shown as a map layer.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ docker compose --env-file .env restart
 #### Reset database (deletes PostgreSQL data; keeps the OpenSearch index):
 ```bash
 docker compose down
-docker volume rm geo-search_pgdata
+docker volume rm geo-search_pgdata geo-search_osdata
 docker compose --env-file .env up -d --build
 ```
 
@@ -47,7 +47,7 @@ Then open:
 
 1. On the first start with an empty database volume, PostGIS runs `db/init.sql` to create tables, indexes, and database objects, then `db/data.sql` to load countries and cities.
 2. On startup, the API reads all places from PostGIS and (re)builds the OpenSearch index.
-3. `pg_cron` imports the USGS all-day feed every five minutes and stores events with magnitude 2.5 or greater.
+3. Every five minutes, `pg_cron` runs the ETL for earthquacks data: `ogr_fdw` reads the all-day GeoJSON feed, events below magnitude 2.5 are filtered out, and remaining records are upload by event ID with converted timestamps, depth, and geometry.
 4. `GET /search?q=<term>` searches places in OpenSearch and returns matching geometries from PostGIS as a GeoJSON `FeatureCollection`.
 5. `GET /earthquakes` returns stored events from the last 24 hours; the web map displays them as a toggleable layer.
 6. The web page sends place queries to `/api/search` and renders the results as markers with popups.
