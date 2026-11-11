@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
     reindex()
     yield
 
-app = FastAPI(title="Geo-Suche", lifespan=lifespan)
+app = FastAPI(title="Geo-Search", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 @app.post("/reindex")

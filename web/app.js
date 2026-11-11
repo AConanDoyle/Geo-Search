@@ -1,6 +1,7 @@
 import { GroupedLayers } from './src/leaflet.groupedlayercontrol.js';
 
 const map = L.map('map').setView([51.1, 10.4], 6);
+
 // Basemaps
 const baselayersStatiaDark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}', {
   minZoom: 0,
@@ -38,13 +39,13 @@ const earthquakes = L.geoJSON(null, {
   },
   onEachFeature: (feature, layer) => {
     const properties = feature.properties;
-    const time = new Date(properties.event_time).toLocaleString('de-DE');
+    const time = new Date(properties.event_time).toLocaleString('en-GB');
     const usgsLink = properties.url
-      ? `<br><a href="${esc(properties.url)}" target="_blank" rel="noopener">USGS-Details</a>`
+      ? `<br><a href="${esc(properties.url)}" target="_blank" rel="noopener">USGS details</a>`
       : '';
     layer.bindPopup(
-      `<b>M ${esc(properties.magnitude ?? 'unbekannt')} · ${esc(properties.place)}</b><br>` +
-      `${esc(time)}<br>Tiefe: ${esc(properties.depth_km)} km<br>` +
+      `<b>M ${esc(properties.magnitude ?? 'unknown')} · ${esc(properties.place)}</b><br>` +
+      `${esc(time)}<br>Depth: ${esc(properties.depth_km)} km<br>` +
       usgsLink
     );
   }
@@ -106,7 +107,7 @@ async function loadOverlayData() {
     if (earthquakesData.features.length) {
       map.fitBounds(earthquakes.getBounds(), { padding: [30, 30], maxZoom: 5 });
     }
-    status.textContent = `${placesData.features.length} Orte, ${countriesData.features.length} Länder und ${earthquakesData.features.length} Erdbeben geladen`;
+    status.textContent = `${placesData.features.length} places, ${countriesData.features.length} countries, and ${earthquakesData.features.length} earthquakes loaded`;
   } catch (error) {
     status.textContent = `Error while loading layers: ${error.message}`;
   }
@@ -118,10 +119,10 @@ document.getElementById('form').addEventListener('submit', async event => {
   event.preventDefault();
   const query = document.getElementById('q').value.trim();
   if (!query) return;
-  status.textContent = 'Suche …';
+  status.textContent = 'Searching…';
   try {
     const response = await fetch('/api/search?q=' + encodeURIComponent(query));
-    if (!response.ok) throw new Error('HTTP ' + error.status);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
 
     results.clearLayers();
@@ -130,9 +131,9 @@ document.getElementById('form').addEventListener('submit', async event => {
         `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.ADM0NAME)}`)
     }).addTo(results);
 
-    status.textContent = data.features.length + ' Treffer';
+    status.textContent = data.features.length + ' results';
     if (data.features.length) map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 12 });
   } catch (error) {
-    status.textContent = 'Fehler: ' + error.message;
+    status.textContent = 'Error: ' + error.message;
   }
 });
