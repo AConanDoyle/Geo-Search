@@ -20,13 +20,12 @@ const baselayersSatellite = L.tileLayer('https://tiles.stadiamaps.com/tiles/alid
 const baselayersStadiaOutdoors = L.tileLayer('https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.{ext}', {
 	minZoom: 0,
 	maxZoom: 20,
-	attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 	ext: 'png'
 });
 
-// Data
-const results = L.layerGroup().addTo(map);
-const earthquakes = L.geoJSON(null, {
+// Options (Layerss Styles and Pop-ups‚)
+const earthquakeOptions = {
   pointToLayer: (feature, latlng) => {
     const magnitude = Number(feature.properties.magnitude ?? 0);
     return L.circleMarker(latlng, {
@@ -49,20 +48,29 @@ const earthquakes = L.geoJSON(null, {
       usgsLink
     );
   }
-});
+};
 
-const cities = L.geoJSON(null, {
+const cityOptions = {
   onEachFeature: (feature, layer) => layer.bindPopup(
     `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.adm0name)}`
   )
-});
+};
 
-const countries = L.geoJSON(null, {
+const countryOptions = {
   style: { color: '#b7c8ce', weight: 1, fillOpacity: 0.12 },
   onEachFeature: (feature, layer) => layer.bindPopup(
     `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.continent)}`
   )
-});
+};
+
+// Data
+const results = L.layerGroup().addTo(map);
+
+const earthquakes = L.geoJSON(null, earthquakeOptions);
+
+const cities = L.geoJSON(null, cityOptions);
+
+const countries = L.geoJSON(null, countryOptions);
 
 const status = document.getElementById('status');
 const esc = value => String(value ?? '').replace(/[&<>"']/g,
@@ -125,10 +133,20 @@ document.getElementById('form').addEventListener('submit', async event => {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
 
+    data.features.forEach(feature => {
+      if (feature.properties.ADM0NAME) feature.properties.adm0name = feature.properties.ADM0NAME;
+    });
+
+    const optionsBySource = { cities: cityOptions, countries: countryOptions, earthquakes: earthquakeOptions };
+
     results.clearLayers();
     const layer = L.geoJSON(data, {
-      onEachFeature: (feature, featureLayer) => featureLayer.bindPopup(
-        `<b>${esc(feature.properties.name)}</b><br>${esc(feature.properties.ADM0NAME)}`)
+      pointToLayer: (feature, latlng) => feature.properties.source === 'earthquakes'
+        ? earthquakeOptions.pointToLayer(feature, latlng)
+        : L.marker(latlng),
+      style: feature => feature.properties.source === 'countries' ? countryOptions.style : {},
+      onEachFeature: (feature, featureLayer) =>
+        optionsBySource[feature.properties.source]?.onEachFeature(feature, featureLayer)
     }).addTo(results);
 
     status.textContent = data.features.length + ' results';
