@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 
 import psycopg
 from fastapi import FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
 from opensearchpy import OpenSearch, helpers
 
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -41,7 +40,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Geo-Search", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 @app.post("/reindex")
 def reindex_endpoint():
@@ -87,8 +85,8 @@ def get_populated_places():
 
 @app.get("/earthquakes")
 def get_earthquakes(limit: int = Query(1000, ge=1, le=5000)):
+    """Return recent earthquakes as GeoJSON (last 24 hours)."""
     with psycopg.connect(DATABASE_URL) as conn:
-        # Filter earthquakes from the last 24 hours
         now_utc = "NOW() AT TIME ZONE 'UTC'"
         rows = conn.execute(
             """

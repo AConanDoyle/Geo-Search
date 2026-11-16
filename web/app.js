@@ -24,7 +24,7 @@ const baselayersStadiaOutdoors = L.tileLayer('https://tiles.stadiamaps.com/tiles
 	ext: 'png'
 });
 
-// Options (Layerss Styles and Pop-ups‚)
+// Options (Layers Styles and Pop-ups)
 const earthquakeOptions = {
   pointToLayer: (feature, latlng) => {
     const magnitude = Number(feature.properties.magnitude ?? 0);
@@ -100,22 +100,19 @@ async function loadOverlayData() {
       fetch('/api/countries'),
       fetch('/api/earthquakes')
     ]);
-    if (!placesResponse.ok || !countriesResponse.ok || !earthquakesResponse.ok) {
-      throw new Error('Map layers');
-    }
-
+    
     const [placesData, countriesData, earthquakesData] = await Promise.all([
       placesResponse.json(),
       countriesResponse.json(),
       earthquakesResponse.json()
     ]);
+    
     groupedOverlays.Layers['Cities'].addData(placesData);
     groupedOverlays.Layers.Countries.addData(countriesData);
     earthquakes.addData(earthquakesData);
-    if (earthquakesData.features.length) {
-      map.fitBounds(earthquakes.getBounds(), { padding: [30, 30], maxZoom: 5 });
-    }
+    
     status.textContent = `${placesData.features.length} places, ${countriesData.features.length} countries, and ${earthquakesData.features.length} earthquakes loaded`;
+
   } catch (error) {
     status.textContent = `Error while loading layers: ${error.message}`;
   }
@@ -127,19 +124,22 @@ document.getElementById('form').addEventListener('submit', async event => {
   event.preventDefault();
   const query = document.getElementById('q').value.trim();
   if (!query) return;
+  
   status.textContent = 'Searching…';
+  
   try {
     const response = await fetch('/api/search?q=' + encodeURIComponent(query));
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
 
-    data.features.forEach(feature => {
-      if (feature.properties.ADM0NAME) feature.properties.adm0name = feature.properties.ADM0NAME;
-    });
-
-    const optionsBySource = { cities: cityOptions, countries: countryOptions, earthquakes: earthquakeOptions };
-
     results.clearLayers();
+    
+    const optionsBySource = { 
+      cities: cityOptions, 
+      countries: countryOptions, 
+      earthquakes: earthquakeOptions 
+    };
+
     const layer = L.geoJSON(data, {
       pointToLayer: (feature, latlng) => feature.properties.source === 'earthquakes'
         ? earthquakeOptions.pointToLayer(feature, latlng)
