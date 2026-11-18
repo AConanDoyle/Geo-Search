@@ -3,7 +3,7 @@ name: Compose Config Check & CI
 on:
   push:
     branches: 
-      -main
+      - main
   pull_request:
     branches:
       - main
@@ -75,7 +75,7 @@ jobs:
             | python3 -c "
                   import sys, json
                   fc = json.load(sys.stdin)
-                  assert len(fc['features']) > 0, 'fuzzy search should find Berlin'
+                  assert len(fc['features']) > 0, 'fuzzy search should find London'
               "
 
           # No results -> 200 with empty FeatureCollection, not 500
