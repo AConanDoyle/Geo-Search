@@ -1,9 +1,12 @@
-name: Compose Config Check
+name: Compose Config Check & CI
 
 on:
   push:
-    branches: [main]
-
+    branches: 
+      -main
+  pull_request:
+    branches:
+      - main
 jobs:
   validate-compose:
     runs-on: ubuntu-latest
@@ -26,3 +29,73 @@ jobs:
 
       - name: List resolved services
         run: docker compose config --services
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: validate-compose
+    env:
+      POSTGRES_PASSWORD: ci-only-not-a-real-secret
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and start stack
+        run: docker compose up -d --build
+
+      - name: Wait for API (reindex included in lifespan)
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fs "http://localhost:8000/search?q=Berlin" >/dev/null 2>&1; then
+              echo "API is up after ${i} attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::API did not come up within 120s"
+          docker compose logs api
+          exit 1
+
+      - name: Integration test
+        run: |
+          set -euo pipefail
+
+          # Search returns valid GeoJSON with hits
+          curl -fs "http://localhost:8000/search?q=Berlin" \
+            | python3 -c "
+                  import sys, json
+                  fc = json.load(sys.stdin)
+                  assert fc['type'] == 'FeatureCollection'
+                  assert len(fc['features']) > 1, 'expected hits for Berlin'
+                  for f in fc['features']:
+                      assert 'geometry' in f and 'properties' in f
+              "
+
+          # Fuzzy search: Typos still find London
+          curl -fs "http://localhost:8000/search?q=Londonn" \
+            | python3 -c "
+                  import sys, json
+                  fc = json.load(sys.stdin)
+                  assert len(fc['features']) > 0, 'fuzzy search should find Berlin'
+              "
+
+          # No results -> 200 with empty FeatureCollection, not 500
+          code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8000/search?q=xqxqzzzqqq")
+          echo "no-result search returned HTTP ${code}"
+          [ "$code" = "200" ]
+
+          # Limit validation: 0 and 101 are invalid according to API spec
+          code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8000/search?q=a&limit=101")
+          [ "$code" = "422" ]
+
+          # Endpoints respond (Earthquakes ETL can be empty in CI -> only check status)
+          curl -fs "http://localhost:8000/earthquakes?limit=10" >/dev/null
+          curl -fs "http://localhost:8000/populated_places" >/dev/null
+
+          # Reindex + then search works again
+          curl -fs -X POST "http://localhost:8000/reindex" >/dev/null
+          curl -fs "http://localhost:8000/search?q=Berlin" >/dev/null
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
