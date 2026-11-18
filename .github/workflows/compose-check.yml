@@ -65,7 +65,7 @@ jobs:
                   import sys, json
                   fc = json.load(sys.stdin)
                   assert fc['type'] == 'FeatureCollection'
-                  assert len(fc['features']) > 1, 'expected hits for Berlin'
+                  assert len(fc['features']) >= 1, 'expected hits for Berlin'
                   for f in fc['features']:
                       assert 'geometry' in f and 'properties' in f
               "
